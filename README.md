@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Medichain (SimpleZeroPharmacy)
+A Blockchain-based Pharmaceutical Supply Chain Management System.
 
-## Getting Started
+## 📋 Tentang Projek
 
-First, run the development server:
+**Medichain** adalah platform manajemen rantai pasok farmasi sederhana yang dibangun di atas teknologi Blockchain (EVM Compatible). Sistem ini bertujuan untuk meningkatkan transparansi, keamanan, dan efisiensi dalam distribusi obat-obatan.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Dengan memanfaatkan standar **ERC-1155 Interface**, setiap jenis obat direpresentasikan sebagai token unik yang dapat dilacak pergerakannya dari pabrik (Factory) hingga ke tangan pasien (Patient), memastikan keaslian obat dan mencegah pemalsuan.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Tujuan Utama
+- **Transparansi Stok**: Pencatatan stok yang immutable di blockchain.
+- **Keamanan Rantai Pasok**: Mencegah obat palsu masuk ke dalam sistem.
+- **Rekam Medis Terdesentralisasi**: Integrasi resep digital yang menghubungkan Dokter, Pasien, dan Obat.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚀 Fitur Utama
 
-## Learn More
+### 🏭 Factory (Pabrik)
+- **Registrasi Obat**: Mendaftarkan jenis obat baru ke dalam smart contract.
+- **Manajemen Produksi**: Melakukan *minting* (produksi) batch obat baru.
+- **Monitoring Stok**: Memantau stok global yang tersedia di gudang smart contract.
 
-To learn more about Next.js, take a look at the following resources:
+### 👨‍⚕️ Doctor (Dokter)
+- **Dispensing Obat**: Memberikan obat kepada pasien melalui transaksi blockchain.
+- **Pencatatan Resep**: Membuat resep digital yang mencakup diagnosa (IPFS) dan data obat.
+- **Riwayat Pasien**: Melihat histori pengambilan obat pasien.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 🏥 Patient (Pasien)
+- **Kepemilikan Obat**: Menerima token obat sebagai bukti kepemilikan yang sah.
+- **Verifikasi**: Memverifikasi keaslian obat dan melihat riwayat resep mereka sendiri.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📄 Halaman Aplikasi
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Berikut adalah struktur halaman yang tersedia dalam aplikasi ini:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Halaman | Rute URL | Deskripsi |
+| :--- | :--- | :--- |
+| **Home** | `/` | Halaman landing page yang menjelaskan platform. |
+| **Factory Dashboard** | `/dashboard/factory` | Pusat kontrol untuk pabrik (Produksi & manajemen stok). |
+| **Doctor Dashboard** | `/dashboard/doctor` | Antarmuka dokter untuk diagnosa & dispensing obat. |
+| **Patient Dashboard** | `/dashboard/patient` | Halaman pasien untuk melihat obat dan resep mereka. |
+| **Medicines Catalog** | `/medicines` | Katalog publik obat-obatan yang terdaftar. |
+
+---
+
+## 🛠️ Teknologi yang Digunakan
+
+- **Frontend**: [Next.js](https://nextjs.org/) (App Router), React, TypeScript.
+- **UI Framework**: [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/).
+- **Blockchain**: Solidity (Smart Contract), Ethereum/Polygon (Target Network).
+- **Libraries**: `lucide-react` (Icons), `recharts` (Charts), `sonner` (Notifications).
+
+---
+
+## 💻 Cara Menjalankan Projek
+
+Ikuti langkah-langkah berikut untuk menjalankan projek di komputer lokal Anda:
+
+### Prasyarat
+- Node.js (Versi 18 atau terbaru)
+- npm / yarn / pnpm
+
+### Langkah Instalasi
+
+1.  **Clone Repository**
+    ```bash
+    git clone https://github.com/leeCode83/medichain.git
+    cd medichain-wkwk
+    ```
+
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    # atau
+    yarn install
+    ```
+
+3.  **Jalankan Development Server**
+    ```bash
+    npm run dev
+    ```
+
+4.  **Buka Aplikasi**
+    Buka browser dan kunjungi [http://localhost:3000](http://localhost:3000).
+
+---
+
+## 📝 Catatan Penting
+- Saat ini, interaksi blockchain pada frontend masih menggunakan **Mock Data** (Simulasi) untuk keperluan UI/UX Prototyping.
+- Logika Smart Contract (`contracts/SimpleZeroPharmacy.sol`) sudah siap untuk di-deploy ke jaringan testnet.
+
+---
+
+Dibuat dengan ❤️ oleh Tim Medichain.
