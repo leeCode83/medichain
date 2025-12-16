@@ -11,7 +11,8 @@ import {
     QrCode,
     Search,
     ShieldCheck,
-    User
+    User,
+    Loader2
 } from "lucide-react"
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts"
 
@@ -31,6 +32,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
+import { useGetAllMedicines } from "@/hooks/useFactory"
+import { usePatientPrescriptions } from "@/hooks/usePatient"
 
 // Dummy Data
 const healthData = [
@@ -72,28 +75,12 @@ const myMedicines = [
     },
 ]
 
-const prescriptionHistory = [
-    {
-        id: "RX-2023-089",
-        doctor: "Dr. Sarah Wilson",
-        hospital: "Central General",
-        diagnosis: "Common Cold",
-        medicine: "Paracetamol 500mg",
-        date: "2023-12-12",
-        status: "Dispensed"
-    },
-    {
-        id: "RX-2023-055",
-        doctor: "Dr. James House",
-        hospital: "Princeton Plainsboro",
-        diagnosis: "Bacterial Infection",
-        medicine: "Amoxicillin 250mg",
-        date: "2023-11-20",
-        status: "Dispensed"
-    },
-]
+
 
 export default function PatientDashboard() {
+    const { medicines } = useGetAllMedicines()
+    const { history, isLoadingHistory } = usePatientPrescriptions()
+
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             <Navbar />
@@ -129,7 +116,7 @@ export default function PatientDashboard() {
                                 <FileText className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{prescriptionHistory.length}</div>
+                                <div className="text-2xl font-bold">{history.length}</div>
                                 <p className="text-xs text-muted-foreground">Total medical records</p>
                             </CardContent>
                         </Card>
@@ -238,34 +225,56 @@ export default function PatientDashboard() {
                                                 <TableHeader>
                                                     <TableRow>
                                                         <TableHead>Date</TableHead>
-                                                        <TableHead>Doctor / Hospital</TableHead>
-                                                        <TableHead>Diagnosis</TableHead>
-                                                        <TableHead>Prescription</TableHead>
-                                                        <TableHead className="text-right">Status</TableHead>
+                                                        <TableHead>Doctor</TableHead>
+                                                        <TableHead>Medicine</TableHead>
+                                                        <TableHead>Tx Hash</TableHead>
+                                                        <TableHead className="text-right">Action</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {prescriptionHistory.map((rx) => (
-                                                        <TableRow key={rx.id}>
-                                                            <TableCell className="font-medium">{rx.date}</TableCell>
-                                                            <TableCell>
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-medium truncate">{rx.doctor}</span>
-                                                                    <span className="text-xs text-muted-foreground">{rx.hospital}</span>
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>{rx.diagnosis}</TableCell>
-                                                            <TableCell>
-                                                                <Badge variant="secondary">{rx.medicine}</Badge>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <div className="flex items-center justify-end gap-2 text-green-600">
-                                                                    <CheckCircle2 className="h-4 w-4" />
-                                                                    <span className="text-sm font-medium">{rx.status}</span>
+                                                    {isLoadingHistory ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
                                                                 </div>
                                                             </TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                    ) : history.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                                                No prescriptions found.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ) : (
+                                                        history.map((rx, idx) => (
+                                                            <TableRow key={idx}>
+                                                                <TableCell className="font-medium">
+                                                                    {new Date(rx.timestamp * 1000).toLocaleDateString()}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="font-medium text-xs font-mono">{rx.doctor.substring(0, 6)}...{rx.doctor.substring(rx.doctor.length - 4)}</span>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant="secondary">
+                                                                        {medicines[rx.medicineId]?.name || `Unknown ID: ${rx.medicineId}`}
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                                                    {rx.transactionHash.substring(0, 10)}...
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button size="sm" variant="ghost" asChild>
+                                                                        <a href={`https://sepolia-blockscout.lisk.com/tx/${rx.transactionHash}`} target="_blank" rel="noopener noreferrer">
+                                                                            View
+                                                                        </a>
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
                                                 </TableBody>
                                             </Table>
                                         </CardContent>

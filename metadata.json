@@ -1,0 +1,12 @@
+{
+    "patientName": "John Doe",
+    "gender": "Male",
+    "age": 30,
+    "patientAddress": "0x1234567890123456789012345678901234567890",
+    "diagnosis": "Fever",
+    "medicine": {
+        "Paracetamol": 1,
+        "Aspirin": 2,
+        "Ibuprofen": 3
+    }
+}

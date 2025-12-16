@@ -12,9 +12,11 @@ import {
     Search,
     Stethoscope,
     User,
-    Users
+    Users,
+    Loader2
 } from "lucide-react"
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,8 +43,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
+import { useGetAllMedicines } from "@/hooks/useFactory"
+import { useDispenseMedicine, useUploadDiagnosis, useDoctorPrescriptions, type DiagnosisData } from "@/hooks/useDoctor"
 
-// Dummy Data
+// Dummy Data for charts
 const activityData = [
     { day: "Mon", patients: 12 },
     { day: "Tue", patients: 18 },
@@ -53,46 +57,74 @@ const activityData = [
     { day: "Sun", patients: 5 },
 ]
 
-const recentPrescriptions = [
-    {
-        id: "RX-2023-089",
-        patient: "0x1234...5678",
-        patientName: "Alice Smith",
-        medicine: "Paracetamol 500mg",
-        date: "2023-12-12 14:30",
-        status: "Completed",
-        hash: "0xabc...def"
-    },
-    {
-        id: "RX-2023-088",
-        patient: "0x8765...4321",
-        patientName: "Bob Jones",
-        medicine: "Amoxicillin 250mg",
-        date: "2023-12-12 11:15",
-        status: "Completed",
-        hash: "0x123...456"
-    },
-    {
-        id: "RX-2023-087",
-        patient: "0x9876...5432",
-        patientName: "Charlie Brown",
-        medicine: "Ibuprofen 400mg",
-        date: "2023-12-11 16:45",
-        status: "Completed",
-        hash: "0x456...789"
-    },
-]
-
-const medicinesList = [
-    { id: "1", name: "Paracetamol 500mg", stock: 1250 },
-    { id: "2", name: "Amoxicillin 250mg", stock: 850 },
-    { id: "3", name: "Ibuprofen 400mg", stock: 620 },
-    { id: "4", name: "Omeprazole 20mg", stock: 340 },
-    { id: "5", name: "Cetirizine 10mg", stock: 180 },
-]
-
 export default function DoctorDashboard() {
-    const [selectedMedicine, setSelectedMedicine] = useState("")
+    // Hooks
+    const { medicines, isLoading: isLoadingMedicines } = useGetAllMedicines()
+    const { dispenseMedicine, isPending: isDispensing } = useDispenseMedicine()
+    const { uploadDiagnosis, isUploading } = useUploadDiagnosis()
+    const { history, isLoadingHistory } = useDoctorPrescriptions()
+
+    // Form State
+    const [patientAddress, setPatientAddress] = useState("")
+    const [patientName, setPatientName] = useState("")
+    const [gender, setGender] = useState("")
+    const [age, setAge] = useState("")
+    const [diagnosis, setDiagnosis] = useState("")
+    const [selectedMedicineId, setSelectedMedicineId] = useState("")
+    const [quantity, setQuantity] = useState("1")
+
+    const handleDispense = async () => {
+        if (!patientAddress || !patientName || !diagnosis || !selectedMedicineId || !age || !gender) {
+            toast.error("Please fill in all required fields")
+            return
+        }
+
+        const selectedMed = medicines.find((m, idx) => idx.toString() === selectedMedicineId)
+        if (!selectedMed) {
+            toast.error("Invalid medicine selected")
+            return
+        }
+
+        try {
+            // 1. Prepare Metadata matching metadata.json structure
+            const diagnosisData: DiagnosisData = {
+                patientName,
+                gender,
+                age: parseInt(age),
+                patientAddress,
+                diagnosis,
+                medicine: {
+                    [selectedMed.name]: parseInt(quantity) // Using dynamic key for medicine name
+                }
+            }
+
+            // 2. Upload to IPFS
+            toast.info("Uploading diagnosis to IPFS...", { duration: 2000 })
+            const ipfsUrl = await uploadDiagnosis(diagnosisData)
+
+            if (!ipfsUrl) {
+                // Error handling is done inside the hook (toast)
+                return
+            }
+
+            // 3. Call Smart Contract
+            toast.info("Confirming transaction...", { duration: 2000 })
+            await dispenseMedicine(parseInt(selectedMedicineId), patientAddress, ipfsUrl)
+
+            // Reset form on success (Optional: controlled by isSuccess in hook, but manual reset here is fine)
+            setPatientAddress("")
+            setPatientName("")
+            setGender("")
+            setAge("")
+            setDiagnosis("")
+            setSelectedMedicineId("")
+            setQuantity("1")
+
+        } catch (error) {
+            console.error("Dispense flow error:", error)
+            toast.error("Failed to process prescription")
+        }
+    }
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -113,7 +145,7 @@ export default function DoctorDashboard() {
                         </div>
                     </div>
 
-                    {/* KPI Cards */}
+                    {/* KPI Cards (Static for now) */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -167,7 +199,7 @@ export default function DoctorDashboard() {
                                     <TabsList>
                                         <TabsTrigger value="dispense">Dispense Medicine</TabsTrigger>
                                         <TabsTrigger value="history">Prescription History</TabsTrigger>
-                                        <TabsTrigger value="patients">My Patients</TabsTrigger>
+
                                     </TabsList>
                                 </div>
 
@@ -180,53 +212,115 @@ export default function DoctorDashboard() {
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-6">
+                                            {/* Patient Info Section */}
                                             <div className="grid gap-4 md:grid-cols-2">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="patient-address">Patient Wallet Address</Label>
-                                                    <Input id="patient-address" placeholder="0x..." />
+                                                    <Input
+                                                        id="patient-address"
+                                                        placeholder="0x..."
+                                                        value={patientAddress}
+                                                        onChange={(e) => setPatientAddress(e.target.value)}
+                                                    />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="patient-name">Patient Name (Optional)</Label>
-                                                    <Input id="patient-name" placeholder="John Doe" />
+                                                    <Label htmlFor="patient-name">Patient Name</Label>
+                                                    <Input
+                                                        id="patient-name"
+                                                        placeholder="John Doe"
+                                                        value={patientName}
+                                                        onChange={(e) => setPatientName(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="gender">Gender</Label>
+                                                    <Select value={gender} onValueChange={setGender}>
+                                                        <SelectTrigger id="gender">
+                                                            <SelectValue placeholder="Select Gender" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Male">Male</SelectItem>
+                                                            <SelectItem value="Female">Female</SelectItem>
+                                                            <SelectItem value="Other">Other</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="age">Age</Label>
+                                                    <Input
+                                                        id="age"
+                                                        type="number"
+                                                        placeholder="30"
+                                                        value={age}
+                                                        onChange={(e) => setAge(e.target.value)}
+                                                    />
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <Label>Select Medicine</Label>
-                                                <Select value={selectedMedicine} onValueChange={setSelectedMedicine}>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select medicine to dispense" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {medicinesList.map((med) => (
-                                                            <SelectItem key={med.id} value={med.id}>
-                                                                <div className="flex justify-between w-full items-center gap-2">
-                                                                    <span>{med.name}</span>
-                                                                    <Badge variant="secondary" className="ml-2 text-xs">Stock: {med.stock}</Badge>
-                                                                </div>
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                            {/* Medicine Selection */}
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label>Select Medicine</Label>
+                                                    <Select value={selectedMedicineId} onValueChange={setSelectedMedicineId}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select medicine to dispense" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {medicines.map((med, idx) => (
+                                                                <SelectItem key={idx} value={idx.toString()}>
+                                                                    <div className="flex justify-between w-full items-center gap-2">
+                                                                        <span>{med.name} ({med.activeIngredient})</span>
+                                                                        <Badge variant="outline" className="ml-2 text-xs">
+                                                                            MINTED: {med.totalBatchesMinted.toString()}
+                                                                        </Badge>
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="quantity">Quantity (Metadata Only)</Label>
+                                                    <Input
+                                                        id="quantity"
+                                                        type="number"
+                                                        placeholder="1"
+                                                        value={quantity}
+                                                        onChange={(e) => setQuantity(e.target.value)}
+                                                    />
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Note: Smart contract currently sends 1 unit token per transaction.
+                                                    </p>
+                                                </div>
                                             </div>
 
                                             <div className="space-y-2">
                                                 <Label htmlFor="diagnosis">Diagnosis & Notes</Label>
                                                 <Textarea
                                                     id="diagnosis"
-                                                    placeholder="Enter detailed diagnosis here. This will be hashed and stored on IPFS."
+                                                    placeholder="Enter detailed diagnosis here. This will be encrypted and stored on IPFS."
                                                     className="min-h-[120px]"
+                                                    value={diagnosis}
+                                                    onChange={(e) => setDiagnosis(e.target.value)}
                                                 />
                                             </div>
 
                                             <div className="flex items-center gap-2 p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-lg text-sm text-blue-700 dark:text-blue-300">
                                                 <Stethoscope className="h-4 w-4" />
-                                                <span>This action effectively transfers ownership of the Medicine NFT from the contract to the patient.</span>
+                                                <span>This action issues a new prescription and transfers ownership of the Medicine NFT.</span>
                                             </div>
 
-                                            <Button className="w-full md:w-auto">
-                                                <Pill className="mr-2 h-4 w-4" />
-                                                Dispense Medicine
+                                            <Button
+                                                className="w-full md:w-auto"
+                                                onClick={handleDispense}
+                                                disabled={isDispensing || isUploading || isLoadingMedicines}
+                                            >
+                                                {(isDispensing || isUploading) ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Pill className="mr-2 h-4 w-4" />
+                                                )}
+                                                {isUploading ? "Uploading Metadata..." : isDispensing ? "Dispensing..." : "Dispense Medicine"}
                                             </Button>
                                         </CardContent>
                                     </Card>
@@ -242,7 +336,7 @@ export default function DoctorDashboard() {
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>ID</TableHead>
+                                                        <TableHead>Tx Hash</TableHead>
                                                         <TableHead>Patient</TableHead>
                                                         <TableHead>Medicine</TableHead>
                                                         <TableHead className="hidden md:table-cell">Date</TableHead>
@@ -250,41 +344,50 @@ export default function DoctorDashboard() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {recentPrescriptions.map((rx) => (
-                                                        <TableRow key={rx.id}>
-                                                            <TableCell className="font-medium">{rx.id}</TableCell>
-                                                            <TableCell>
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-medium">{rx.patientName}</span>
-                                                                    <span className="text-xs text-muted-foreground hidden sm:inline">{rx.patient}</span>
+                                                    {isLoadingHistory ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
                                                                 </div>
                                                             </TableCell>
-                                                            <TableCell>{rx.medicine}</TableCell>
-                                                            <TableCell className="hidden md:table-cell">{rx.date}</TableCell>
-                                                            <TableCell className="text-right">
-                                                                <Button size="sm" variant="ghost">View</Button>
+                                                        </TableRow>
+                                                    ) : history.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                                                                No prescriptions found.
                                                             </TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                    ) : (
+                                                        history.map((rx, idx) => (
+                                                            <TableRow key={idx}>
+                                                                <TableCell className="font-mono text-xs">{rx.transactionHash.substring(0, 10)}...</TableCell>
+                                                                <TableCell>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="font-medium text-xs">{rx.patient.substring(0, 6)}...{rx.patient.substring(rx.patient.length - 4)}</span>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {medicines[rx.medicineId]?.name || `Unknown ID: ${rx.medicineId}`}
+                                                                </TableCell>
+                                                                <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                                                                    {new Date(rx.timestamp * 1000).toLocaleString()}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button size="sm" variant="ghost" asChild>
+                                                                        <a href={`https://sepolia-blockscout.lisk.com/tx/${rx.transactionHash}`} target="_blank" rel="noopener noreferrer">View</a>
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
                                                 </TableBody>
                                             </Table>
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
 
-                                <TabsContent value="patients" className="mt-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>My Patients</CardTitle>
-                                            <CardDescription>List of patients you have treated.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="flex items-center justify-center p-8 text-muted-foreground">
-                                                Patient list feature coming soon...
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
+
 
                             </Tabs>
                         </div>

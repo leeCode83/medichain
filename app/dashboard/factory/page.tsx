@@ -126,13 +126,6 @@ export default function FactoryDashboard() {
                     <div className="flex items-center justify-between">
                         <h1 className="text-3xl font-bold tracking-tight">Factory Dashboard</h1>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" className="h-8 gap-1">
-                                <History className="h-3.5 w-3.5" />
-                                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                                    History Log
-                                </span>
-                            </Button>
-
                             <Dialog open={isNewProductionOpen} onOpenChange={setIsNewProductionOpen}>
                                 <DialogTrigger asChild>
                                     <Button size="sm" className="h-8 gap-1">
