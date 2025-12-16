@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -9,7 +9,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
-import { cn } from "@/lib/utils"
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export function Navbar() {
   return (
@@ -78,7 +78,7 @@ export function Navbar() {
           <Link href="/login" className="text-sm font-medium hover:underline underline-offset-4 hidden sm:block">
             Login
           </Link>
-          <Button>Connect Wallet</Button>
+          <ConnectButton />
         </div>
       </div>
     </div>

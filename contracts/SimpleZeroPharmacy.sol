@@ -80,7 +80,7 @@ contract SimpleZeroPharmacy is
     // Kita perlu override untuk menyelesaikan konflik inheritance.
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC1155, ERC1155Receiver) returns (bool) {
+    ) public view override(ERC1155, ERC1155Holder) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
@@ -140,6 +140,11 @@ contract SimpleZeroPharmacy is
     // BAGIAN 3: DOKTER (DOCTOR) - INTI SISTEM
     // =============================================================
 
+    // --- MAPPING TAMBAHAN UNTUK FRONTEND (TANPA INDEXER) ---
+    // Menyimpan indeks resep di array 'prescriptions' untuk setiap user
+    mapping(address => uint256[]) private patientPrescriptions;
+    mapping(address => uint256[]) private doctorPrescriptions;
+
     function dispenseMedicine(
         uint256 _medicineId,
         address _patient,
@@ -155,6 +160,7 @@ contract SimpleZeroPharmacy is
         require(stock > 0, "Stok obat habis (Out of Stock)");
 
         // 2. CATAT DIAGNOSIS & RESEP (Off-chain metadata reference on-chain)
+        uint256 prescriptionIndex = prescriptions.length;
         prescriptions.push(
             Prescription(
                 _medicineId,
@@ -164,6 +170,10 @@ contract SimpleZeroPharmacy is
                 block.timestamp
             )
         );
+
+        // Update Mapping Frontend
+        patientPrescriptions[_patient].push(prescriptionIndex);
+        doctorPrescriptions[msg.sender].push(prescriptionIndex);
 
         // 3. TRANSFER TOKEN (Dari Kontrak ke Pasien)
         // Mengirim 1 unit obat
@@ -178,7 +188,42 @@ contract SimpleZeroPharmacy is
     }
 
     // =============================================================
-    // BAGIAN 4: VIEW / READ-ONLY
+    // BAGIAN 4: VIEW / READ-ONLY (UPDATE)
+    // =============================================================
+
+    // Ambil semua jenis obat (untuk Factory Dashboard & Dropdown)
+    function getAllMedicineTypes() public view returns (MedicineType[] memory) {
+        return medicineTypes;
+    }
+
+    // Ambil semua resep milik pasien tertentu
+    function getPatientPrescriptions(
+        address _patient
+    ) public view returns (Prescription[] memory) {
+        uint256[] memory indexes = patientPrescriptions[_patient];
+        Prescription[] memory results = new Prescription[](indexes.length);
+
+        for (uint256 i = 0; i < indexes.length; i++) {
+            results[i] = prescriptions[indexes[i]];
+        }
+        return results;
+    }
+
+    // Ambil semua resep yang dikeluarkan oleh dokter tertentu
+    function getDoctorPrescriptions(
+        address _doctor
+    ) public view returns (Prescription[] memory) {
+        uint256[] memory indexes = doctorPrescriptions[_doctor];
+        Prescription[] memory results = new Prescription[](indexes.length);
+
+        for (uint256 i = 0; i < indexes.length; i++) {
+            results[i] = prescriptions[indexes[i]];
+        }
+        return results;
+    }
+
+    // =============================================================
+    // BAGIAN 5: VIEW / READ-ONLY (ORIGINAL)
     // =============================================================
 
     // Cek stok tersedia di kontrak

@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
-    BarChart3,
     Box,
     Factory,
     History,
@@ -42,103 +41,50 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
-
-// Dummy Data
-const medicineStats = [
-    { name: "Paracetamol", value: 1250, color: "#3b82f6" },
-    { name: "Amoxicillin", value: 850, color: "#10b981" },
-    { name: "Ibuprofen", value: 620, color: "#f59e0b" },
-    { name: "Omeprazole", value: 340, color: "#8b5cf6" },
-    { name: "Cetirizine", value: 180, color: "#ef4444" },
-]
-
-const recentBatches = [
-    {
-        id: "BATCH-2023-001",
-        medicine: "Paracetamol 500mg",
-        quantity: 5000,
-        date: "2023-12-10",
-        status: "Completed",
-        hash: "0x7f...3a2b"
-    },
-    {
-        id: "BATCH-2023-002",
-        medicine: "Amoxicillin 250mg",
-        quantity: 2000,
-        date: "2023-12-11",
-        status: "Processing",
-        hash: "0x8a...4b1c"
-    },
-    {
-        id: "BATCH-2023-003",
-        medicine: "Ibuprofen 400mg",
-        quantity: 3000,
-        date: "2023-12-12",
-        status: "Pending",
-        hash: "-"
-    },
-]
-
-const initialMedicinesList = [
-    { id: 1, name: "Paracetamol", sku: "MED-001", stock: 1250, minStock: 500, status: "In Stock" },
-    { id: 2, name: "Amoxicillin", sku: "MED-002", stock: 850, minStock: 200, status: "In Stock" },
-    { id: 3, name: "Ibuprofen", sku: "MED-003", stock: 620, minStock: 300, status: "In Stock" },
-    { id: 4, name: "Omeprazole", sku: "MED-004", stock: 340, minStock: 100, status: "In Stock" },
-    { id: 5, name: "Cetirizine", sku: "MED-005", stock: 180, minStock: 200, status: "Low Stock" },
-]
+import { useCreateMedicine, useGetAllMedicines, useRestockMedicine, useRestockHistory } from "@/hooks/useFactory"
 
 export default function FactoryDashboard() {
-    const [medicinesList, setMedicinesList] = useState(initialMedicinesList)
+    // Real Data from Blockchain
+    const { medicines, isLoading: isLoadingMedicines } = useGetAllMedicines()
+    const { history: restockHistory, isLoading: isLoadingHistory } = useRestockHistory()
+
+    const totalStock = useMemo(() => {
+        return medicines.reduce((acc, curr) => acc + BigInt(curr.totalBatchesMinted), BigInt(0))
+    }, [medicines])
+
+    // Hooks
+    const { createMedicine, isPending: isCreating } = useCreateMedicine()
+    const { restockMedicine, isPending: isRestocking } = useRestockMedicine()
 
     // New Production State
     const [isNewProductionOpen, setIsNewProductionOpen] = useState(false)
-    const [isCreating, setIsCreating] = useState(false)
     const [newMedName, setNewMedName] = useState("")
     const [newMedIngredient, setNewMedIngredient] = useState("")
-    const [newMedSku, setNewMedSku] = useState("")
 
     // Restock State
     const [isRestockOpen, setIsRestockOpen] = useState(false)
-    const [isRestocking, setIsRestocking] = useState(false)
-    const [selectedMedicine, setSelectedMedicine] = useState<typeof medicinesList[0] | null>(null)
+    // const [isRestocking, setIsRestocking] = useState(false) // Replaced by hook
+
+    const [selectedMedicine, setSelectedMedicine] = useState<any | null>(null)
     const [restockBatchId, setRestockBatchId] = useState("")
     const [restockQuantity, setRestockQuantity] = useState("")
 
-    const getTotalStock = () => medicineStats.reduce((acc, curr) => acc + curr.value, 0)
-    const getLowStockCount = () => medicinesList.filter(m => m.stock < m.minStock).length
-
     const handleCreateMedicine = async () => {
-        if (!newMedName || !newMedIngredient || !newMedSku) {
+        if (!newMedName || !newMedIngredient) {
             toast.error("Please fill in all fields")
             return
         }
 
-        setIsCreating(true)
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        await createMedicine(newMedName, newMedIngredient)
 
-        const newMedicine = {
-            id: medicinesList.length + 1,
-            name: newMedName,
-            sku: newMedSku,
-            stock: 0,
-            minStock: 100, // Default
-            status: "Out of Stock"
-        }
-
-        setMedicinesList([...medicinesList, newMedicine])
-        setIsCreating(false)
-        setIsNewProductionOpen(false)
+        // Reset form (Ideally this happens after confirmation, but for UX we can close pending success or wait)
+        // For now, we'll keep it simple as the hook handles notifications.
         setNewMedName("")
         setNewMedIngredient("")
-        setNewMedSku("")
-
-        toast.success("New Medicine Type Created", {
-            description: `${newMedName} has been registered successfully.`
-        })
+        setIsNewProductionOpen(false)
     }
 
-    const openRestockModal = (medicine: typeof medicinesList[0]) => {
+    const openRestockModal = (medicine: any) => {
         setSelectedMedicine(medicine)
         setRestockBatchId(`BATCH-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`) // Auto-generate suggestion
         setRestockQuantity("")
@@ -146,35 +92,28 @@ export default function FactoryDashboard() {
     }
 
     const handleRestock = async () => {
-        if (!selectedMedicine || !restockBatchId || !restockQuantity) {
-            toast.error("Please fill in all details")
+        if (!selectedMedicine || !restockQuantity) {
+            toast.error("Please fill in quantity")
             return
         }
 
-        setIsRestocking(true)
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        const qty = parseInt(restockQuantity)
+        if (isNaN(qty) || qty <= 0) {
+            toast.error("Invalid quantity")
+            return
+        }
 
-        const quantity = parseInt(restockQuantity)
+        // Find index of selected medicine to use as ID
+        const medicineId = medicines.findIndex(m => m.name === selectedMedicine.name && m.activeIngredient === selectedMedicine.activeIngredient)
 
-        setMedicinesList(prev => prev.map(med => {
-            if (med.id === selectedMedicine.id) {
-                const newStock = med.stock + quantity
-                return {
-                    ...med,
-                    stock: newStock,
-                    status: newStock > med.minStock ? "In Stock" : med.status
-                }
-            }
-            return med
-        }))
+        if (medicineId === -1) {
+            toast.error("Medicine not found in registry")
+            return
+        }
 
-        setIsRestocking(false)
+        await restockMedicine(medicineId, qty)
+
         setIsRestockOpen(false)
-
-        toast.success("Restock Successful", {
-            description: `Added ${quantity} units to ${selectedMedicine.name}.`
-        })
     }
 
     return (
@@ -229,15 +168,6 @@ export default function FactoryDashboard() {
                                                 onChange={(e) => setNewMedIngredient(e.target.value)}
                                             />
                                         </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="sku">SKU / Code</Label>
-                                            <Input
-                                                id="sku"
-                                                placeholder="MED-XXX"
-                                                value={newMedSku}
-                                                onChange={(e) => setNewMedSku(e.target.value)}
-                                            />
-                                        </div>
                                     </div>
                                     <DialogFooter>
                                         <Button variant="outline" onClick={() => setIsNewProductionOpen(false)}>Cancel</Button>
@@ -251,7 +181,7 @@ export default function FactoryDashboard() {
                         </div>
                     </div>
 
-                    {/* KPI Cards */}
+                    {/* KPI Cards (Placeholder for real data) */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -259,7 +189,7 @@ export default function FactoryDashboard() {
                                 <Package className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{medicinesList.length}</div>
+                                <div className="text-2xl font-bold">{medicines.length}</div>
                                 <p className="text-xs text-muted-foreground">Types of medicines registered</p>
                             </CardContent>
                         </Card>
@@ -269,55 +199,24 @@ export default function FactoryDashboard() {
                                 <Box className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{getTotalStock().toLocaleString('en-US')}</div>
+                                <div className="text-2xl font-bold">{totalStock.toString()}</div>
                                 <p className="text-xs text-muted-foreground">Units available in warehouse</p>
                             </CardContent>
                         </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Active Batches</CardTitle>
-                                <Factory className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">3</div>
-                                <p className="text-xs text-muted-foreground">Currently in production</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
-                                <AlertTriangle className="h-4 w-4 text-destructive" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{getLowStockCount()}</div>
-                                <p className="text-xs text-muted-foreground">Medicines below minimum level</p>
-                            </CardContent>
-                        </Card>
+                        {/* More KPIs can be added back when data is available */}
                     </div>
 
                     <div className="grid gap-4 md:gap-8 lg:grid-cols-3">
 
-                        {/* Main Content Area - Left 2/3 */}
-                        <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
+                        {/* Main Content Area - Full Width for now */}
+                        <div className="grid auto-rows-max items-start gap-4 lg:col-span-3 lg:gap-8">
 
                             <Tabs defaultValue="inventory" className="w-full">
                                 <div className="flex items-center">
                                     <TabsList>
                                         <TabsTrigger value="inventory">Inventory</TabsTrigger>
                                         <TabsTrigger value="batches">Batches</TabsTrigger>
-                                        <TabsTrigger value="register">Register Medicine</TabsTrigger>
-                                        <TabsTrigger value="restock">Restock</TabsTrigger>
                                     </TabsList>
-                                    <div className="ml-auto flex items-center gap-2">
-                                        <div className="relative">
-                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                type="search"
-                                                placeholder="Search medicines..."
-                                                className="h-9 w-[200px] rounded-lg bg-background pl-8 md:w-[300px]"
-                                            />
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <TabsContent value="inventory" className="mt-4">
@@ -333,36 +232,50 @@ export default function FactoryDashboard() {
                                                 <TableHeader>
                                                     <TableRow>
                                                         <TableHead>Medicine Name</TableHead>
-                                                        <TableHead className="hidden sm:table-cell">SKU</TableHead>
-                                                        <TableHead className="hidden sm:table-cell">Status</TableHead>
-                                                        <TableHead className="text-right">Stock</TableHead>
+                                                        <TableHead className="hidden sm:table-cell">Active Ingredient</TableHead>
+                                                        <TableHead className="hidden sm:table-cell">Total Produced</TableHead>
                                                         <TableHead className="text-right">Action</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {medicinesList.map((medicine) => (
-                                                        <TableRow key={medicine.id}>
-                                                            <TableCell>
-                                                                <div className="font-medium">{medicine.name}</div>
-                                                            </TableCell>
-                                                            <TableCell className="hidden sm:table-cell">{medicine.sku}</TableCell>
-                                                            <TableCell className="hidden sm:table-cell">
-                                                                <Badge variant={medicine.status.includes("Out") ? "destructive" : medicine.status === "Low Stock" ? "destructive" : "secondary"}>
-                                                                    {medicine.status}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">{medicine.stock}</TableCell>
-                                                            <TableCell className="text-right">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => openRestockModal(medicine)}
-                                                                >
-                                                                    Restock
-                                                                </Button>
+                                                    {isLoadingMedicines ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading data...
+                                                                </div>
                                                             </TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                    ) : medicines.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                                                                No medicines found. Connect wallet or register new medicine to start.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ) : (
+                                                        medicines.map((medicine, idx) => (
+                                                            <TableRow key={idx}>
+                                                                <TableCell>
+                                                                    <div className="font-medium">{medicine.name}</div>
+                                                                </TableCell>
+                                                                <TableCell className="hidden sm:table-cell">{medicine.activeIngredient}</TableCell>
+                                                                <TableCell className="hidden sm:table-cell">
+                                                                    <Badge variant="secondary">
+                                                                        {medicine.totalBatchesMinted.toString()} Batches
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => openRestockModal(medicine)}
+                                                                    >
+                                                                        Restock
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
                                                 </TableBody>
                                             </Table>
                                         </CardContent>
@@ -370,179 +283,72 @@ export default function FactoryDashboard() {
                                 </TabsContent>
 
                                 <TabsContent value="batches" className="mt-4">
-                                    <Card x-chunk="dashboard-05-chunk-3">
+                                    <Card x-chunk="dashboard-05-chunk-4">
                                         <CardHeader className="px-7">
-                                            <CardTitle>Recent Production Batches</CardTitle>
-                                            <CardDescription>History of recent manufacturing batches.</CardDescription>
+                                            <CardTitle>Batch History</CardTitle>
+                                            <CardDescription>
+                                                History of all medicine restock transactions on the blockchain.
+                                            </CardDescription>
                                         </CardHeader>
                                         <CardContent>
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>Batch ID</TableHead>
-                                                        <TableHead>Medicine</TableHead>
-                                                        <TableHead className="hidden md:table-cell">Date</TableHead>
-                                                        <TableHead>Status</TableHead>
-                                                        <TableHead className="text-right">Quantity</TableHead>
+                                                        <TableHead>Tx Hash</TableHead>
+                                                        <TableHead>Block</TableHead>
+                                                        <TableHead>Medicine Name</TableHead>
+                                                        <TableHead className="text-right">Quantity Minted</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {recentBatches.map((batch) => (
-                                                        <TableRow key={batch.id}>
-                                                            <TableCell className="font-medium">{batch.id}</TableCell>
-                                                            <TableCell>{batch.medicine}</TableCell>
-                                                            <TableCell className="hidden md:table-cell">{batch.date}</TableCell>
-                                                            <TableCell>
-                                                                <Badge variant="outline">{batch.status}</Badge>
+                                                    {isLoadingHistory ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
+                                                                </div>
                                                             </TableCell>
-                                                            <TableCell className="text-right">{batch.quantity}</TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                    ) : restockHistory.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                                                                No restock history found.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ) : (
+                                                        restockHistory.map((log, idx) => (
+                                                            <TableRow key={idx}>
+                                                                <TableCell className="font-mono text-xs">
+                                                                    {log.transactionHash.substring(0, 10)}...
+                                                                </TableCell>
+                                                                <TableCell>{log.blockNumber.toString()}</TableCell>
+                                                                <TableCell>
+                                                                    <div className="font-medium">
+                                                                        {medicines[log.medicineId]?.name || `Unknown ID: ${log.medicineId}`}
+                                                                    </div>
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {medicines[log.medicineId]?.activeIngredient}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Badge variant="outline">
+                                                                        +{log.quantity}
+                                                                    </Badge>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
                                                 </TableBody>
                                             </Table>
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
 
-                                <TabsContent value="register" className="mt-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Register New Medicine</CardTitle>
-                                            <CardDescription>
-                                                Add a new medicine type to the blockchain registry.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="med-name">Medicine Name</Label>
-                                                <Input id="med-name" placeholder="e.g. Paracetamol 500mg" />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="active-ingredient">Active Ingredient</Label>
-                                                <Input id="active-ingredient" placeholder="e.g. Acetaminophen" />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="sku">SKU / Code</Label>
-                                                <Input id="sku" placeholder="MED-XXX" />
-                                            </div>
-                                            <Button className="w-full sm:w-auto">Register Medicine</Button>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-
-                                <TabsContent value="restock" className="mt-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Restock Medicine (Minting)</CardTitle>
-                                            <CardDescription>
-                                                Produce new units of existing medicine. This will mint new NFTs.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="select-med">Select Medicine</Label>
-                                                <select
-                                                    id="select-med"
-                                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    <option value="">Select a medicine...</option>
-                                                    {medicinesList.map(m => (
-                                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="batch-id">Batch ID</Label>
-                                                <Input id="batch-id" placeholder="Auto-generated or Manual Input" />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="quantity">Quantity (Units)</Label>
-                                                <Input id="quantity" type="number" placeholder="100" />
-                                            </div>
-                                            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-sm text-muted-foreground">
-                                                <CheckCircle2 className="h-4 w-4" />
-                                                <span>This action will mint new NFTs to the contract warehouse.</span>
-                                            </div>
-                                            <Button className="w-full sm:w-auto">Mint & Restock</Button>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-
                             </Tabs>
-                        </div>
-
-                        {/* Sidebar / Right Column - 1/3 */}
-                        <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
-
-                            {/* Distribution Chart */}
-                            <Card className="overflow-hidden">
-                                <CardHeader>
-                                    <CardTitle>Stock Distribution</CardTitle>
-                                    <CardDescription>
-                                        Current stock levels by medicine type
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={medicineStats}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={5}
-                                                    dataKey="value"
-                                                >
-                                                    {medicineStats.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                                    ))}
-                                                </Pie>
-                                                <RechartsTooltip
-                                                    formatter={(value: any, name: any) => [`${value} Units`, name]}
-                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                                />
-                                                <Legend verticalAlign="bottom" height={36} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Recent Activity / Notifications */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Notifications</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-4">
-                                    <div className="flex items-start gap-4 text-sm">
-                                        <div className="rounded-full bg-primary/10 p-2 text-primary">
-                                            <PackagePlus className="h-4 w-4" />
-                                        </div>
-                                        <div className="grid gap-1">
-                                            <p className="font-medium">New Batch Created</p>
-                                            <p className="text-muted-foreground">Batch #2023-002 for Amoxicillin initiated.</p>
-                                            <p className="text-xs text-muted-foreground">2 hours ago</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-4 text-sm">
-                                        <div className="rounded-full bg-destructive/10 p-2 text-destructive">
-                                            <AlertTriangle className="h-4 w-4" />
-                                        </div>
-                                        <div className="grid gap-1">
-                                            <p className="font-medium">Low Stock Alert</p>
-                                            <p className="text-muted-foreground">Cetirizine stock is below minimum threshold (200).</p>
-                                            <p className="text-xs text-muted-foreground">5 hours ago</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
                         </div>
                     </div>
 
-                    {/* Restock Dialog - Placed here to span document if needed, but safe inside main container too */}
+                    {/* Restock Dialog - Placeholder */}
                     <Dialog open={isRestockOpen} onOpenChange={setIsRestockOpen}>
                         <DialogContent>
                             <DialogHeader>
@@ -553,15 +359,6 @@ export default function FactoryDashboard() {
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="restock-batch">Batch ID</Label>
-                                    <Input
-                                        id="restock-batch"
-                                        value={restockBatchId}
-                                        onChange={(e) => setRestockBatchId(e.target.value)}
-                                        placeholder="BATCH-YYYY-001"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
                                     <Label htmlFor="restock-qty">Quantity</Label>
                                     <Input
                                         id="restock-qty"
@@ -570,12 +367,6 @@ export default function FactoryDashboard() {
                                         onChange={(e) => setRestockQuantity(e.target.value)}
                                         placeholder="100"
                                     />
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    <p>Current Stock: <span className="font-medium text-foreground">{selectedMedicine?.stock}</span></p>
-                                    {restockQuantity && (
-                                        <p>New Stock: <span className="font-medium text-green-600">{selectedMedicine ? selectedMedicine.stock + parseInt(restockQuantity || '0') : 0}</span></p>
-                                    )}
                                 </div>
                             </div>
                             <DialogFooter>

@@ -1,96 +1,87 @@
 # Medichain (SimpleZeroPharmacy)
-A Blockchain-based Pharmaceutical Supply Chain Management System.
+
+**Sistem Manajemen Rantai Pasok Farmasi Berbasis Blockchain (Lisk Sepolia Testnet).**
 
 ## 📋 Tentang Projek
 
-**Medichain** adalah platform manajemen rantai pasok farmasi sederhana yang dibangun di atas teknologi Blockchain (EVM Compatible). Sistem ini bertujuan untuk meningkatkan transparansi, keamanan, dan efisiensi dalam distribusi obat-obatan.
+**Medichain** adalah aplikasi terdesentralisasi (DApp) yang dirancang untuk meningkatkan transparansi, keamanan, dan efisiensi dalam distribusi obat-obatan. Dengan memanfaatkan teknologi blockchain, sistem ini memastikan setiap unit obat dapat dilacak dari pabrik hingga ke tangan pasien, mencegah peredaran obat palsu.
 
-Dengan memanfaatkan standar **ERC-1155 Interface**, setiap jenis obat direpresentasikan sebagai token unik yang dapat dilacak pergerakannya dari pabrik (Factory) hingga ke tangan pasien (Patient), memastikan keaslian obat dan mencegah pemalsuan.
-
-### Tujuan Utama
-- **Transparansi Stok**: Pencatatan stok yang immutable di blockchain.
-- **Keamanan Rantai Pasok**: Mencegah obat palsu masuk ke dalam sistem.
-- **Rekam Medis Terdesentralisasi**: Integrasi resep digital yang menghubungkan Dokter, Pasien, dan Obat.
-
----
+Projek ini dibangun di atas jaringan **Lisk Sepolia Testnet** dan menggunakan standar **ERC-1155** untuk pengelolaan token obat yang efisien (Batch Minting), serta integrasi **IPFS (Pinata)** untuk penyimpanan data resep yang aman dan terdesentralisasi.
 
 ## 🚀 Fitur Utama
 
 ### 🏭 Factory (Pabrik)
-- **Registrasi Obat**: Mendaftarkan jenis obat baru ke dalam smart contract.
-- **Manajemen Produksi**: Melakukan *minting* (produksi) batch obat baru.
-- **Monitoring Stok**: Memantau stok global yang tersedia di gudang smart contract.
+- **Registrasi Obat**: Mendaftarkan jenis obat baru ke dalam Smart Contract.
+- **Produksi (Minting)**: Mencetak stok obat baru sebagai token ERC-1155.
+- **Monitoring Stok**: Dasbor real-time untuk memantau ketersediaan obat on-chain.
 
 ### 👨‍⚕️ Doctor (Dokter)
-- **Dispensing Obat**: Memberikan obat kepada pasien melalui transaksi blockchain.
-- **Pencatatan Resep**: Membuat resep digital yang mencakup diagnosa (IPFS) dan data obat.
-- **Riwayat Pasien**: Melihat histori pengambilan obat pasien.
+- **Dispensing Obat**: Memberikan obat kepada pasien melalui transaksi blockchain yang transparan.
+- **Resep Digital**: Mencatat diagnosa dan resep yang tersimpan permanen (Hash IPFS tercatat di on-chain).
+- **Verifikasi Pasien**: Memastikan obat sampai ke pasien yang tepat.
 
 ### 🏥 Patient (Pasien)
-- **Kepemilikan Obat**: Menerima token obat sebagai bukti kepemilikan yang sah.
-- **Verifikasi**: Memverifikasi keaslian obat dan melihat riwayat resep mereka sendiri.
+- **Kepemilikan Sah**: Menerima token obat di wallet sebagai bukti kepemilikan.
+- **Verifikasi Keaslian**: Cek orisinalitas obat langsung dari history blockchain.
+- **Akses Riwayat**: Melihat riwayat resep dan pengobatan.
 
----
-
-## 📄 Halaman Aplikasi
-
-Berikut adalah struktur halaman yang tersedia dalam aplikasi ini:
-
-| Halaman | Rute URL | Deskripsi |
-| :--- | :--- | :--- |
-| **Home** | `/` | Halaman landing page yang menjelaskan platform. |
-| **Factory Dashboard** | `/dashboard/factory` | Pusat kontrol untuk pabrik (Produksi & manajemen stok). |
-| **Doctor Dashboard** | `/dashboard/doctor` | Antarmuka dokter untuk diagnosa & dispensing obat. |
-| **Patient Dashboard** | `/dashboard/patient` | Halaman pasien untuk melihat obat dan resep mereka. |
-| **Medicines Catalog** | `/medicines` | Katalog publik obat-obatan yang terdaftar. |
+### 🔗 Integrasi Blockchain
+- **Connect Wallet**: Dukungan multi-wallet menggunakan **RainbowKit** & **Wagmi**.
+- **Smart Contract Interactive**: Seluruh logika bisnis dijalankan oleh kontrak cerdas `SimpleZeroPharmacy.sol`.
+- **Decentralized Storage**: Metadata resep disimpan di IPFS via Pinata.
 
 ---
 
 ## 🛠️ Teknologi yang Digunakan
 
-- **Frontend**: [Next.js](https://nextjs.org/) (App Router), React, TypeScript.
-- **UI Framework**: [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/).
-- **Blockchain**: Solidity (Smart Contract), Ethereum/Polygon (Target Network).
-- **Libraries**: `lucide-react` (Icons), `recharts` (Charts), `sonner` (Notifications).
+- **Frontend**: [Next.js 16](https://nextjs.org/) (App Router), React 19, TypeScript.
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/).
+- **Blockchain Client**:
+  - `wagmi`: React Hooks untuk Ethereum.
+  - `viem`: Interface EVM low-level.
+  - `@rainbow-me/rainbowkit`: UI Wallet Connection.
+- **Smart Contract**: Solidity (ERC-1155 Standard).
+- **Storage**: Pinata SDK (IPFS).
 
 ---
 
 ## 💻 Cara Menjalankan Projek
 
-Ikuti langkah-langkah berikut untuk menjalankan projek di komputer lokal Anda:
+Ikuti langkah-langkah berikut untuk menjalankan aplikasi di lingkungan lokal:
 
-### Prasyarat
-- Node.js (Versi 18 atau terbaru)
-- npm / yarn / pnpm
+### 1. Clone Repository
+```bash
+git clone https://github.com/leeCode83/medichain.git
+cd medichain
+```
 
-### Langkah Instalasi
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-1.  **Clone Repository**
-    ```bash
-    git clone https://github.com/leeCode83/medichain.git
-    cd medichain-wkwk
-    ```
+### 3. Konfigurasi Environment Variable
+Buat file `.env` di root direktori projek untuk konfigurasi Pinata (IPFS):
 
-2.  **Install Dependencies**
-    ```bash
-    npm install
-    # atau
-    yarn install
-    ```
+```env
+PINATA_JWT=your_pinata_jwt_key
+NEXT_PUBLIC_GATEWAY_URL=your_pinata_gateway_url
+```
 
-3.  **Jalankan Development Server**
-    ```bash
-    npm run dev
-    ```
-
-4.  **Buka Aplikasi**
-    Buka browser dan kunjungi [http://localhost:3000](http://localhost:3000).
+### 4. Jalankan Development Server
+```bash
+npm run dev
+```
+Buka browser dan kunjungi [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 📝 Catatan Penting
-- Saat ini, interaksi blockchain pada frontend masih menggunakan **Mock Data** (Simulasi) untuk keperluan UI/UX Prototyping.
-- Logika Smart Contract (`contracts/SimpleZeroPharmacy.sol`) sudah siap untuk di-deploy ke jaringan testnet.
+## 📝 Status Pengembangan
+
+Projek ini sedang dalam tahap pengembangan aktif untuk tujuan edukasi/kuliah.
+- **Jaringan Target**: Lisk Sepolia Testnet.
+- **Kontrak Cerdas**: Lokasi di `contracts/SimpleZeroPharmacy.sol`.
+- **Catatan**: Pastikan Anda memiliki saldo Testnet ETH (Lisk Sepolia) di wallet Anda untuk berinteraksi dengan fitur-fitur transaksi (seperti Restock atau Dispense).
 
 ---
 
