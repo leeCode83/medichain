@@ -33,7 +33,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
 import { useGetAllMedicines } from "@/hooks/useFactory"
-import { usePatientPrescriptions } from "@/hooks/usePatient"
+import { usePatientPrescriptions, usePatientMedicines } from "@/hooks/usePatient"
 
 // Dummy Data
 const healthData = [
@@ -45,41 +45,15 @@ const healthData = [
     { month: "Jun", visits: 1 },
 ]
 
-const myMedicines = [
-    {
-        id: "NFT-1024",
-        name: "Paracetamol 500mg",
-        batch: "BATCH-2023-001",
-        expiry: "12/2026",
-        image: "💊", // Placeholder for actual image
-        verified: true,
-        acquired: "2023-12-12"
-    },
-    {
-        id: "NFT-1025",
-        name: "Amoxicillin 250mg",
-        batch: "BATCH-2023-002",
-        expiry: "06/2025",
-        image: "🍶",
-        verified: true,
-        acquired: "2023-11-20"
-    },
-    {
-        id: "NFT-1099",
-        name: "Vitamin C 1000mg",
-        batch: "BATCH-2023-005",
-        expiry: "01/2027",
-        image: "🍊",
-        verified: true,
-        acquired: "2023-10-05"
-    },
-]
+
 
 
 
 export default function PatientDashboard() {
     const { medicines } = useGetAllMedicines()
+
     const { history, isLoadingHistory } = usePatientPrescriptions()
+    const { ownedMedicines, isLoading: isLoadingMedicines } = usePatientMedicines()
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -106,7 +80,7 @@ export default function PatientDashboard() {
                                 <Pill className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{myMedicines.length}</div>
+                                <div className="text-2xl font-bold">{ownedMedicines.length}</div>
                                 <p className="text-xs text-muted-foreground">Digital assets in wallet</p>
                             </CardContent>
                         </Card>
@@ -167,50 +141,61 @@ export default function PatientDashboard() {
 
                                 <TabsContent value="medicines" className="mt-4">
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        {myMedicines.map((med) => (
-                                            <Card key={med.id} className="overflow-hidden border-2 hover:border-primary/50 transition-colors">
-                                                <div className="h-24 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-4xl">
-                                                    {med.image}
+                                        {isLoadingMedicines ? (
+                                            <Card className="flex flex-col items-center justify-center h-[200px] border-dashed bg-muted/20 col-span-full">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    <span>Loading your medicines...</span>
                                                 </div>
-                                                <CardHeader className="pb-2">
-                                                    <div className="flex justify-between items-start">
-                                                        <CardTitle className="text-lg">{med.name}</CardTitle>
-                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
-                                                            <ShieldCheck className="h-3 w-3" />
-                                                            Verified
-                                                        </Badge>
-                                                    </div>
-                                                    <CardDescription className="font-mono text-xs">{med.id}</CardDescription>
-                                                </CardHeader>
-                                                <CardContent>
-                                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-muted-foreground text-xs">Batch No.</span>
-                                                            <span className="font-medium">{med.batch}</span>
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-muted-foreground text-xs">Expiry</span>
-                                                            <span className="font-medium">{med.expiry}</span>
-                                                        </div>
-                                                    </div>
-                                                </CardContent>
-                                                <CardFooter className="bg-muted/50 p-3">
-                                                    <Button variant="ghost" size="sm" className="w-full text-xs gap-2">
-                                                        <QrCode className="h-3.5 w-3.5" />
-                                                        View Blockchain Proof
-                                                    </Button>
-                                                </CardFooter>
                                             </Card>
-                                        ))}
-
-                                        {/* Empty State / Add New Placeholder */}
-                                        <Card className="flex flex-col items-center justify-center h-[280px] border-dashed bg-muted/20">
-                                            <div className="text-muted-foreground text-center p-6">
-                                                <Pill className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                                                <h3 className="font-medium">No more medicines</h3>
-                                                <p className="text-sm mt-1">Dispense records will appear here automatically.</p>
-                                            </div>
-                                        </Card>
+                                        ) : ownedMedicines.length === 0 ? (
+                                            <Card className="flex flex-col items-center justify-center h-[280px] border-dashed bg-muted/20 col-span-full">
+                                                <div className="text-muted-foreground text-center p-6">
+                                                    <Pill className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                                                    <h3 className="font-medium">No medicines found</h3>
+                                                    <p className="text-sm mt-1">You don't own any medicine tokens yet.</p>
+                                                </div>
+                                            </Card>
+                                        ) : (
+                                            ownedMedicines.map((med) => (
+                                                <Card key={med.id} className="overflow-hidden border-2 hover:border-primary/50 transition-colors">
+                                                    <div className="h-24 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-4xl">
+                                                        💊
+                                                    </div>
+                                                    <CardHeader className="pb-2">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <CardTitle className="text-lg">{med.name}</CardTitle>
+                                                                <span className="text-xs text-muted-foreground">{med.activeIngredient}</span>
+                                                            </div>
+                                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
+                                                                <ShieldCheck className="h-3 w-3" />
+                                                                Owned: {med.balance}
+                                                            </Badge>
+                                                        </div>
+                                                        <CardDescription className="font-mono text-xs">Token ID: {med.id}</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-muted-foreground text-xs">Standard</span>
+                                                                <span className="font-medium">ERC-1155</span>
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-muted-foreground text-xs">Status</span>
+                                                                <span className="font-medium text-green-600">Active</span>
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                    <CardFooter className="bg-muted/50 p-3">
+                                                        <Button variant="ghost" size="sm" className="w-full text-xs gap-2">
+                                                            <QrCode className="h-3.5 w-3.5" />
+                                                            View Proof
+                                                        </Button>
+                                                    </CardFooter>
+                                                </Card>
+                                            ))
+                                        )}
                                     </div>
                                 </TabsContent>
 

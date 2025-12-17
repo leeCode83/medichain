@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { parseAbiItem } from 'viem'
 
+const EMPTY_MEDICINES: MedicineType[] = []
+
 export function useGetAllMedicines() {
     const { data: medicines, isPending, error, refetch } = useReadContract({
         address: contractAddress as `0x${string}`,
@@ -12,7 +14,7 @@ export function useGetAllMedicines() {
     })
 
     return {
-        medicines: (medicines as unknown as MedicineType[]) || [],
+        medicines: (medicines as unknown as MedicineType[]) || EMPTY_MEDICINES,
         isLoading: isPending,
         error,
         refetch
